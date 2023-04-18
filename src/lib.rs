@@ -1,25 +1,16 @@
 mod parser;
 use parser::{any_char, map, match_literal, one_or_more, pred, Parser, ParserResult};
 
-fn literal_pattern<'a, P>(input: &'a str) -> ParserResult<'a, P>
-where
-    P: Parser<'a, String>,
-{
-    let mut out = String::new();
-    let mut chars = input.chars();
+fn literal_pattern<'a>(input: &'a str) -> ParserResult<'a, impl Parser<'a, char>> {
+    let parser = pred(any_char, |c| c.is_alphanumeric());
 
-    while let Some(char) = chars.next() {
-        match char {
-            x if x.is_alphanumeric() => out.push(x),
-            _ => break,
+    match parser.parse(input) {
+        Ok((input, _)) => {
+            let parser = parser;
+            Ok((input, parser))
         }
+        Err(e) => Err(e),
     }
-
-    if out.len() == 0 {
-        return Err(input);
-    }
-
-    Ok((&input[out.len()..], map(match_literal(&out), |_| out)))
 }
 
 #[cfg(test)]
@@ -30,5 +21,16 @@ mod tests {
     fn test_pattern() {}
 
     #[test]
-    fn test_literal() {}
+    fn test_literal() {
+        let parser = literal_pattern("hello");
+
+        let parser = match parser {
+            Ok((_, parser)) => parser,
+            Err(_) => panic!("Failed to parse literal"),
+        };
+
+        let result = parser.parse("hello world");
+
+        assert_eq!(result, Ok(("ello world", 'h')));
+    }
 }
